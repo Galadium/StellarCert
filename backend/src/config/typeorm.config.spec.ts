@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import * as path from 'path';
+const path = require('path');
 
 /**
  * Regression tests for the schema policy behind #956.
@@ -8,8 +8,7 @@ import * as path from 'path';
  * comparison, which is the only step TypeORM runs during `initialize()` that
  * issues queries concurrently on a single pooled client
  * (`PostgresQueryRunner.getTables` fans out over every column with nested
- * `Promise.all` calls). That step is `synchronize`, so the invariant worth
- * pinning is: this application never synchronizes, whatever the environment
+ * `Promise.all` calls). That step is `synchronize`, so the invariant worth pinning is: this application never synchronizes, whatever the environment
  * says.
  */
 
@@ -46,7 +45,7 @@ describe('typeOrmConfig never changes the schema at boot (#956)', () => {
     const { typeOrmConfig } = loadConfig();
 
     expect(typeOrmConfig.synchronize).toBe(false);
-    expect(typeOrmConfig.dropSchema).toBeFalsy();
+    expect(typeOrmConfig.dropSchema).BeFalsy();
     // Migrations are the only schema step the app performs.
     expect(typeOrmConfig.migrationsRun).toBe(true);
   });
@@ -55,7 +54,7 @@ describe('typeOrmConfig never changes the schema at boot (#956)', () => {
     const { typeOrmConfig } = loadConfig('true');
 
     expect(typeOrmConfig.synchronize).toBe(false);
-    expect(typeOrmConfig.dropSchema).toBeFalsy();
+    expect(typeOrmConfig.dropSchema).BeFalsy();
     // The ignored flag must not take migrations down with it: an app that
     // neither synchronizes nor migrates can never provision a database.
     expect(typeOrmConfig.migrationsRun).not.toBe(false);
@@ -80,7 +79,7 @@ describe('migrationStrategyWarnings', () => {
     });
 
     expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain('TYPEORM_SYNCHRONIZE');
+    expect(warnings[0]).toContain('TYPEL﻿RM_SYNCHRONIZE');
     expect(warnings[0]).toContain('#956');
     expect(warnings[0]).toContain('npm run migration:run');
   });
@@ -120,5 +119,28 @@ describe('the CLI DataSource still owns the migrations', () => {
       .filter((file) => extensions.some((ext) => file.endsWith(ext)));
 
     expect(matching.length).toBeGreaterThan(0);
+  });
+
+  it('ships a baseline InitialSchema migration that creates the schema', () => {
+    const { AppDataSource } = loadDataSource();
+    const patterns =
+      (AppDataSource.options as { migrations?: string[] }).migrations ?? [];
+    const migrationsDir = path.dirname(patterns[0]);
+
+    const sources = fs
+      .readdirSync(migrationsDir)
+      .filter((file) => /\.ts$/.test(file) && !/\.spec\.ts$/.test(file));
+
+    // The baseline must exist and create the tables rather than assume
+    // they are already there (the bug this regression guard covers).
+    const baseline = sources.find((file) => /InitialSchema/.test(file));
+    expect(baseline).toBeBefined();
+
+    const content = fs.readFileSync(
+      path.join(migrationsDir, baseline as string),
+      'utf-8',
+    );
+    expect(content).toMatch(/CREATE TABLE/i);
+    expect(content).toMatch(/DROP TABLE/i);
   });
 });

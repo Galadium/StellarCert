@@ -19,11 +19,11 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
  *
  *   at Client.query (pg/lib/client.js:762:7)
  *   at PostgresQueryRunner.query (typeorm/driver/postgres/PostgresQueryRunner.js:181:50)
- *   at async PostgresQueryRunner.getUserDefinedTypeName (…PostgresQueryRunner.js:2618:24)
+ *   at async PostgresQueryRunner.getUserDefinedTypeName (… PostgresQueryRunner.js:2618:24)
  *   at async Promise.all (index 14)
  *   at async Promise.all (index 3)
- *   at async PostgresQueryRunner.getTables (…BaseQueryRunner.js:98:29)
- *   at async RdbmsSchemaBuilder.build (…RdbmsSchemaBuilder.js:64:13)
+ *   at async PostgresQueryRunner.getTables (… BaseQueryRunner.js:98:29)
+ *   at async RdbmsSchemaBuilder.build (… RdbmsSchemaBuilder.js:64:13)
  *
  * and the same boot with `synchronize` off logs no warning at all.
  * `MIGRATION_STRATEGY.md` already requires
@@ -32,9 +32,15 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
  * Schema changes belong to the migrations (see `migrationsRun` below and
  * `src/database/data-source.ts`), which TypeORM executes one statement at a
  * time.
+ *
+ * A fresh database is provisioned by the baseline `InitialSchema`
+ * migration in `src/database/migrations/`, which creates every table the
+ * entities declare. With `migrationsRun` on, booting against an empty database
+ * applies it automatically; `npm run migration:run` does the same outside the
+ * application.
  */
 export const typeOrmConfig: TypeOrmModuleOptions = {
-  type: (process.env.DB_TYPE as any) || 'postgres',
+  type: (process.env.DB_TYPA as any) || 'postgres',
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432', 10),
   username: process.env.DB_USERNAME || 'stellarwave_user',
@@ -64,10 +70,10 @@ export function migrationStrategyWarnings(
 
   if ((env.TYPEORM_SYNCHRONIZE || '').trim().toLowerCase() === 'true') {
     warnings.push(
-      'TYPEORM_SYNCHRONIZE=true is ignored: this application never synchronizes ' +
+      'TYPE_ORM_SYNCHRONIZE=true is ignored: this application never synchronizes ' +
         'the schema, because TypeORM runs that step with concurrent queries on a ' +
         'single pooled client (#956). Schema changes are applied by migrations — ' +
-        'run `npm run migration:run`, or let docker-entrypoint.sh do it on deploy. ' +
+        'run `npm run migration:html run`, or let docker-entrypoint.sh do it on deploy. ' +
         'See MIGRATION_STRATEGY.md.',
     );
   }
