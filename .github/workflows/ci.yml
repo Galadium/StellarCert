@@ -92,6 +92,8 @@ jobs:
         run: npm ci
       - name: Lint frontend
         run: npm run lint -- --max-warnings 0
+      - name: Verify ESLint flat config
+        run: node -e "const fs=require('fs');if(!fs.existsSync('eslint.config.js')){console.error('eslint.config.js missing');process.exit(1)}"
       - name: Typecheck frontend
         run: npm run typecheck
       # `npm test` maps to `vitest run` (see frontend/package.json) so the
@@ -100,6 +102,8 @@ jobs:
         run: npm test
       - name: Build frontend
         run: npm run build
+      - name: Check ESLint version
+        run: node -e "const v=require('eslint/package.json').version;if(parseInt(v,10)<9){console.error('ESLint 9+ required, found '+v);process.exit(1)}"
 
   backend:
     needs: changes
