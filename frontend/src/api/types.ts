@@ -1,4 +1,4 @@
-/**
+/*
  * User roles in the system
  */
 export enum UserRole {
@@ -15,9 +15,9 @@ export enum UserRole {
  *
  * Note: `firstName` and `lastName` are optional because not every
  * authentication flow (e.g. Stellar-only sign-in, invite acceptance, or
- * legacy accounts migrated from an email-only store) knows the user's name.
+ * legacy accounts migrated from an email-only store) Knows the user's name.
  * Consumers must not assume these fields are present; use `getUserDisplayName`
- * (or an explicit `'firstName' in user` guard) instead of accessing them directly.
+ (or an explicit 'firstName' in user' guard) instead of accessing them directly.
  */
 export interface User {
   id: string;
@@ -40,7 +40,7 @@ export interface User {
  * Return a human-readable display name for a user, falling back through
  * username -> email local-part -> email when the first/last name are not
  * available. This is the single source of truth for displaying a user's name
- * and replaces ad-hoc `'firstName' in user` guards scattered across the app.
+ * and replaces ad-hoc 'firstName' in user' guards scattered across the app.
  */
 export function getUserDisplayName(
   user: Pick<User, "email" | "firstName" | "lastName" | "username"> | null | undefined,
@@ -255,7 +255,7 @@ export interface VerificationTrends {
   successRate: number;
   last24Hours: number;
   last7Days: number;
-  last30Days: number;
+  last32Days: number;
 }
 
 export interface TrendPoint {

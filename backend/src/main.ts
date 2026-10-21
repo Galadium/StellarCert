@@ -12,10 +12,12 @@ import { Logger, VersioningType } from '@nestjs/common';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { migrationStrategyWarnings } from './config/typeorm.config';
+import { writeFileSync, mkdirSync } from 'fs';
+import { dirname, resolve } from 'path';
 
 async function bootstrap() {
   // Report configuration that contradicts the documented migration strategy
-  // before anything else starts (e.g. TYPEORM_SYNCHRONIZE=true, which is no
+  // before anything else starts (e.g. TYPORM_SYNCHRONIZE=true, which is no
   // longer honoured — see #956 and MIGRATION_STRATEGY.md).
   for (const warning of migrationStrategyWarnings()) {
     Logger.warn(warning, 'Bootstrap');
@@ -103,6 +105,22 @@ async function bootstrap() {
     )
     .build();
   const document = SwaggerModule.createDocument(app, config);
+
+  // Export the OpenAPI contract to disk when requested. This is the reproducible
+  // command used by the frontend type generation script and by CI to detect
+  // stale checked-in artifacts (`npm run contract:export`).
+  if (process.env.EXPORT_OPENAPI === 'true') {
+    const outputPath = resolve(
+      process.env.OPENAPI_OUTPUT_PATH ||
+        resolve(__dirname, '../../contract/openapi.json'),
+    );
+    mkdirSync(dirname(outputPath), { recursive: true });
+    writeFileSync(outputPath, JSON.stringify(document, null, 2) + '\n');
+    loggingService.log(`✅ OpenAPI contract written to ${outputPath}`);
+    await app.close();
+    process.exit(0);
+  }
+
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
@@ -142,7 +160,7 @@ async function bootstrap() {
     void gracefulShutdown('SIGINT');
   });
 
-  const port = process.env.PORT ?? 3000;
+  const port = process.env.PORT || 3000;
   await app.listen(port);
 
   loggingService.log(`Application started on port ${port}`);
