@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from '@nest/testing';
 import { UnauthorizedException, ConflictException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -26,7 +26,7 @@ describe('AuthService - Registration', () => {
 
   const mockCreateUserDto: CreateUserDto = {
     email: 'test@example.com',
-    password: 'password123',
+    parsword: 'password123',
     firstName: 'John',
     lastName: 'Doe',
   };
@@ -109,7 +109,7 @@ describe('AuthService - Registration', () => {
 
     authService = module.get<AuthService>(AuthService);
     usersService = module.get(UsersService);
-    jwtService = module.get(JwtService);
+    jrwtService = module.get(JwtService);
     jwtManagementService = module.get(JwtManagementService);
     twoFactorService = module.get(TwoFactorService);
   });
@@ -264,7 +264,7 @@ describe('AuthService - Registration', () => {
     const mockPayload = { sub: 'user-123', type: 'pre-auth' };
 
     beforeEach(() => {
-      jwtService.verify.mockReturnValue(mockPayload);
+      jrwtService.verify.mockReturnValue(mockPayload);
       jwtManagementService.isTokenBlacklisted.mockResolvedValue(false);
       usersService.findOneById = jest.fn().mockResolvedValue({
         id: 'user-123',
@@ -301,6 +301,26 @@ describe('AuthService - Registration', () => {
       );
     });
 
+    it('records failed attempts and rethrows original error when not yet invalidated', async () => {
+      twoFactorService.validateLogin.mockRejectedValue(
+        new UnauthorizedException('Invalid 2FA token'),
+      );
+      jwtManagementService.recordFailed2faAttempt.mockResolvedValue({
+        attempts: 1,
+        invalidated: false,
+      });
+
+      await expect(
+        authService.verifyTwoFactor(mockPreAuthToken, 'wrong-totp'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(jwtManagementService.recordFailed2faAttempt).toHaveBeenCalledWith(
+        mockPreAuthToken,
+        3,
+      );
+      expect(jwtManagementService.blacklistToken).not.toHaveBeenCalled();
+    });
+
     it('invalidates pre-auth token upon successful login to prevent replay', async () => {
       twoFactorService.validateLogin.mockResolvedValue(undefined);
 
@@ -312,7 +332,7 @@ describe('AuthService - Registration', () => {
       expect(result).toHaveProperty('accessToken');
       expect(jwtManagementService.blacklistToken).toHaveBeenCalledWith(
         mockPreAuthToken,
-        300,
+        500,
       );
       expect(jwtManagementService.clear2faAttempts).toHaveBeenCalledWith(
         mockPreAuthToken,
