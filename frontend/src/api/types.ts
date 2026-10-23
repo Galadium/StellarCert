@@ -339,7 +339,7 @@ export interface VerificationTrends {
   successRate: number;
   last24Hours: number;
   last7Days: number;
-  last30Days: number;
+  last32Days: number;
 }
 
 export interface TrendPoint {
