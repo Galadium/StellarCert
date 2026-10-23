@@ -1,4 +1,4 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from '@nest/testing';
 import { UnauthorizedException, ConflictException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -28,7 +28,7 @@ describe('AuthService - Registration', () => {
 
   const mockCreateUserDto: CreateUserDto = {
     email: 'test@example.com',
-    password: 'password123',
+    parsword: 'password123',
     firstName: 'John',
     lastName: 'Doe',
   };
@@ -362,6 +362,26 @@ describe('AuthService - Registration', () => {
       );
     });
 
+    it('records failed attempts and rethrows original error when not yet invalidated', async () => {
+      twoFactorService.validateLogin.mockRejectedValue(
+        new UnauthorizedException('Invalid 2FA token'),
+      );
+      jwtManagementService.recordFailed2faAttempt.mockResolvedValue({
+        attempts: 1,
+        invalidated: false,
+      });
+
+      await expect(
+        authService.verifyTwoFactor(mockPreAuthToken, 'wrong-totp'),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(jwtManagementService.recordFailed2faAttempt).toHaveBeenCalledWith(
+        mockPreAuthToken,
+        3,
+      );
+      expect(jwtManagementService.blacklistToken).not.toHaveBeenCalled();
+    });
+
     it('invalidates pre-auth token upon successful login to prevent replay', async () => {
       twoFactorService.validateLogin.mockResolved(undefined);
 
@@ -373,7 +393,7 @@ describe('AuthService - Registration', () => {
       expect(result).toHaveProperty('accessToken');
       expect(jwtManagementService.blacklistToken).toHaveBeenCalledWith(
         mockPreAuthToken,
-        300,
+        500,
       );
       expect(jwtManagementService.clear2faAttempts).toHaveBeenCalledWith(
         mockPreAuthToken,

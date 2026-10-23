@@ -114,16 +114,26 @@ export class AuthRateLimitMiddleware implements NestMiddleware {
     );
   }
 
+  private isVerifyRoute(req: Request): boolean {
+    const path = (req.originalUrl || req.url || '').split('?')[0];
+    return /\/2fa\/verify\/?$/.test(path);
+  }
+
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     const ip = this.getClientIp(req);
-    const key = `rate:auth:${String(ip)}`;
+    const isVerify = this.isVerifyRoute(req);
+    const limit = isVerify ? this.verifyLimit : this.limit;
+    const windowMs = isVerify ? this.verifyWindowMs : this.windowMs;
+    const key = isVerify
+      ? `rate:auth:2fa-verify:${String(ip)}`
+      : `rate:auth:${String(ip)}`;
 
     try {
       const now = Date.now();
       const existing = await this.cacheManager.get<RateLimitData | number>(key);
 
       let count = 0;
-      let expiresAt = now + this.windowMs;
+      let expiresAt = now + windowMs;
 
       if (typeof existing === 'object' && existing !== null) {
         if (existing.expiresAt && now < existing.expiresAt) {
@@ -135,7 +145,7 @@ export class AuthRateLimitMiddleware implements NestMiddleware {
         count = existing;
       }
 
-      if (count >= this.limit) {
+      if (count >= limit) {
         const retryAfterSeconds = Math.max(
           1,
           Math.ceil((expiresAt - now) / 1000),
