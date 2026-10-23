@@ -45,6 +45,8 @@ describe('CertificateService', () => {
   };
   const webhooksService = {
     triggerEvent: jest.fn(),
+    emitCertificateMetadataUpdated: jest.fn().mockResolvedValue(undefined),
+    emitCertificateExpirySet: jest.fn().mockResolvedValue(undefined),
   };
   const metadataSchemaService = {
     validateMetadata: jest.fn().mockResolved(true),

@@ -12,6 +12,7 @@ import { CreateIssuerDto } from './dto/create-issuer.dto';
 import { isValidStellarPublicKey } from './utils/stellar';
 import { IssuerPaginationQueryDto, IPaginatedResult } from './dto/pagination.dto';
 import { IssuerTier } from '../../common/rate-limiting/rate-limit.types';
+import { WebhooksService } from '../webhooks/webhooks.service';
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -32,6 +33,7 @@ export class IssuersService {
   constructor(
     @InjectRepository(Issuer)
     private readonly issuerRepo: Repository<Issuer>,
+    private readonly webhooksService: WebhooksService,
   ) {}
 
   async createIssuer(dto: CreateIssuerDto) {
@@ -47,13 +49,51 @@ export class IssuersService {
     }
 
     const issuer = this.issuerRepo.create(dto);
-    return this.issuerRepo.save(issuer);
+    const saved = await this.issuerRepo.save(issuer);
+    await this.emitIssuerEvent('IssuerAddedEvent', saved);
+    return saved;
   }
 
   async removeIssuer(id: string) {
     const issuer = await this.issuerRepo.findOne({ where: { id } });
     if (!issuer) throw new NotFoundException('Issuer not found');
-    return this.issuerRepo.remove(issuer);
+    const removed = await this.issuerRepo.remove(issuer);
+    await this.emitIssuerEvent('IssuerRemovedEvent', removed);
+    return removed;
+  }
+
+  /**
+   * Publish an issuer allow-list lifecycle event so the backend webhook /
+   * indexer layer can react to issuer additions and removals.
+   *
+   * Events are delivered through the webhooks service and additionally recorded
+   * as structured log records to keep the existing API and data compatibility
+   * intact while providing a stable, observable boundary.
+   */
+  private async emitIssuerEvent(
+    event: 'IssuerAddedEvent' | 'IssuerRemovedEvent',
+    issuer: Issuer,
+  ): Promise<void> {
+    const payload = {
+      issuerId: issuer.id,
+      stellarPublicKey: issuer.stellarPublicKey,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.logger.log(JSON.stringify({ event, ...payload }));
+
+    try {
+      if (event === 'IssuerAddedEvent') {
+        await this.webhooksService.emitIssuerAdded(issuer.id, payload);
+      } else {
+        await this.webhooksService.emitIssuerRemoved(issuer.id, payload);
+      }
+    } catch (error) {
+      // Event delivery must never break the primary state-changing operation.
+      this.logger.warn(
+        `Failed to emit ${event} for issuer ${issuer.id}: ${(error as Error)?.message ?? error}`,
+      );
+    }
   }
 
   async findByStellarPublicKey(stellarPublicKey: string): Promise<Issuer | null> {
