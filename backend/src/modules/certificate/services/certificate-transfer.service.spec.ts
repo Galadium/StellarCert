@@ -12,6 +12,7 @@ describe('CertificateTransferService', () => {
   let logger: any;
   let userRepo: any;
   let emailService: any;
+  let feeCharger: any;
 
   beforeEach(() => {
     transferRepo = {
@@ -26,11 +27,11 @@ describe('CertificateTransferService', () => {
     };
 
     auditService = {
-      log: jest.fn().mockResolvedValue(undefined),
+      log: jest.fn().mockResolved(undefined),
     };
 
     notificationsService = {
-      createNotification: jest.fn().mockResolvedValue({ id: 'notif-1' }),
+      createNotification: jest.fn().mockResolved({ id: 'notif-1' }),
     };
 
     logger = {
@@ -44,8 +45,14 @@ describe('CertificateTransferService', () => {
     };
 
     emailService = {
-      sendTransferConfirmationCode: jest.fn().mockResolvedValue(undefined),
-      sendTransferCompletedNotice: jest.fn().mockResolvedValue(undefined),
+      sendTransferConfirmationCode: jest.fn().mockResolved(undefined),
+      sendTransferCompletedNotice: jest.fn().mockResolved(undefined),
+    };
+
+    feeCharger = {
+      chargeTransferFee: jest
+        .fn()
+        .mockResolved({ transactionHash: 'tx-hash-1' }),
     };
 
     service = new CertificateTransferService(
@@ -56,6 +63,7 @@ describe('CertificateTransferService', () => {
       logger,
       userRepo,
       emailService,
+      feeCharger,
     );
   });
 
@@ -69,7 +77,7 @@ describe('CertificateTransferService', () => {
         recipientName: 'Old Owner',
         status: 'active',
       };
-      certRepo.findOne.mockResolvedValue(mockCert);
+      certRepo.findOne.mockResolved(mockCert);
 
       const recipientUser = {
         id: 'user-recipient-99',
@@ -77,7 +85,7 @@ describe('CertificateTransferService', () => {
         firstName: 'New',
         lastName: 'Owner',
       };
-      userRepo.findOne.mockResolvedValue(recipientUser);
+      userRepo.findOne.mockResolved(recipientUser);
 
       const dto = {
         certificateId: 'cert-1',
@@ -282,6 +290,7 @@ describe('CertificateTransferService', () => {
         toEmail: 'newowner@example.com',
         toName: 'New Owner',
         confirmationCode: '123456',
+        transferFee: '0',
         status: TransferStatus.PENDING,
         certificate: {
           id: 'cert-1',
@@ -294,15 +303,15 @@ describe('CertificateTransferService', () => {
         },
       };
 
-      transferRepo.findOne.mockResolvedValue(mockTransfer);
-      certRepo.findOne.mockResolvedValue(mockTransfer.certificate);
+      transferRepo.findOne.mockResolved(mockTransfer);
+      certRepo.findOne.mockResolved(mockTransfer.certificate);
 
       const recipientUser = {
         id: 'user-recipient-99',
         email: 'newowner@example.com',
         firstName: 'New',
       };
-      userRepo.findOne.mockResolvedValue(recipientUser);
+      userRepo.findOne.mockResolved(recipientUser);
 
       await service.approveTransfer(
         'transfer-1',

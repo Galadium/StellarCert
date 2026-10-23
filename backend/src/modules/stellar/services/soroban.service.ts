@@ -443,7 +443,7 @@ export class SorobanService implements OnModuleInit, IssuerKeypairProvider {
         reason ? nativeToScVal(reason) : nativeToScVal(null),
       ];
 
-      const transaction = new TransactionBuilder(sourceAccount, {
+      const builder = new TransactionBuilder(sourceAccount, {
         fee: '100',
         networkPassphrase: this.networkPassphrase,
       })
